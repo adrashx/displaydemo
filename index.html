@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Realistic Multi-Display Simulator - Interactive monitor setup demonstration">
+    <meta name="author" content="Display Demo">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Realistic Multi-Display Simulator</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Font loading with fallbacks -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS with fallback -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Resource loading error handling -->
+    <script>
+        // Handle external resource loading failures
+        window.addEventListener('error', function(e) {
+            if (e.target.tagName === 'LINK' || e.target.tagName === 'SCRIPT') {
+                console.warn('External resource failed to load:', e.target.src || e.target.href);
+                // Could trigger fallback loading here
+            }
+        }, true);
+    </script>
+    
+    <!-- Service Worker for offline support (optional) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+    
+    <!-- Fallback styles if Tailwind fails to load -->
+    <style>
+        /* Critical fallback styles */
+        .fallback-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            height: 100vh;
+            gap: 1px;
+            background-color: #30363d;
+        }
+        .fallback-cell {
+            background-color: #1f1f1f;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .fallback-number {
+            position: absolute;
+            top: 1rem;
+            left: 1.5rem;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: #484f58;
+        }
+        .fallback-message {
+            color: #c9d1d9;
+            text-align: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+    </style>
+    
+    <style>
+        :root {
+            --grid-bg: #121212;
+            --cell-bg: #1f1f1f;
+            --monitor-screen: #0d1117;
+            --monitor-stand: #30363d;
+            --grid-border: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #484f58;
+            --accent-blue: #0078d4;
+            --accent-green: #2ea043;
+            --accent-red: #da3633;
+        }
+
+        /* Base styles with fallbacks */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            cursor: none;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--grid-bg);
+            color: var(--text-primary);
+            overflow: hidden; /* Prevent scrollbars */
+        }
+
+        /* Focus styles for accessibility */
+        *:focus {
+            outline: 2px solid var(--accent-blue);
+            outline-offset: 2px;
+        }
+
+        /* Skip link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: var(--accent-blue);
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 10000;
+        }
+        .skip-link:focus {
+            top: 6px;
+        }
+
+        /* Main grid with error handling */
+        #main-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            height: 100vh;
+            border: 1px solid var(--grid-border);
+            border-right: none;
+            border-bottom: none;
+            gap: 0;
+        }
+
+        /* Error state */
+        .error-state {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(218, 54, 51, 0.9);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            z-index: 10000;
+            text-align: center;
+        }
+
+        /* Loading state */
+        .loading-state {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-primary);
+            z-index: 1000;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            #main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(9, 1fr);
+            }
+            .setup-cell h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .setup-cell {
+                padding: 0.5rem;
+            }
+            .setup-cell h2 {
+                font-size: 1.25rem;
+                top: 0.5rem;
+                left: 1rem;
+            }
+        }
+
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --grid-bg: #000000;
+                --cell-bg: #ffffff;
+                --text-primary: #000000;
+                --text-secondary: #666666;
+            }
+        }
+
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* The main 3x3 grid container */
+        #main-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            height: 100vh; /* Full viewport height */
+            border: 1px solid var(--grid-border); /* Thinner border */
+            border-right: none;
+            border-bottom: none;
+        }
+        /* Each cell in the grid */
+        .setup-cell {
+            border-right: 1px solid var(--grid-border);
+            border-bottom: 1px solid var(--grid-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 1rem;
+            overflow: hidden;
+            background-color: var(--cell-bg);
+            transition: background-color 0.2s ease;
+        }
+
+        .setup-cell:hover {
+            background-color: #2a2a2a;
+        }
+
+        .setup-cell h2 {
+            position: absolute;
+            top: 1rem;
+            left: 1.5rem;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 0;
+            user-select: none;
+        }
+
+        .display-area {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Monitor styles with error handling */
+        .interactive-monitor {
+            background-color: var(--monitor-screen);
+            border: 1px solid #30363d;
+            position: relative;
+            overflow: hidden;
+            background-size: cover;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            transition: transform 0.1s ease;
+        }
+
+        .interactive-monitor:hover {
+            transform: scale(1.02);
+        }
+
+        .interactive-stand {
+            background-color: var(--monitor-stand);
+            position: relative;
+            width: 8px;
+            height: 18px;
+            margin: 0 auto;
+            border: none;
+            z-index: 1;
+        }
+
+        .interactive-stand::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 28px;
+            height: 4px;
+            background-color: var(--monitor-stand);
+            border-radius: 2px;
+            z-index: 0;
+        }
+
+        .interactive-stand.no-stand-base::after {
+            display: none;
+        }
+
+        /* Cursor styles with performance optimizations */
+        .fake-cursor {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z'/%3E%3Cpath d='M13 13l6 6'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+            position: absolute;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+            transform: translate(-50%, -50%);
+            will-change: transform;
+        }
+
+        /* Themed backgrounds with fallbacks */
+        .ms-bg {
+            background-image: radial-gradient(circle at 50% 150%, var(--accent-blue), #002564 80%);
+            background-color: var(--accent-blue);
+            position: relative;
+        }
+
+        .ms-logo {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            width: 22px;
+            height: 22px;
+            opacity: 0.18;
+        }
+
+        .dev-bg {
+            background-color: #010409;
+            background-image: 
+                repeating-linear-gradient(180deg, transparent, transparent 19px, hsla(210, 50%, 60%, 0.1) 19px, hsla(210, 50%, 60%, 0.1) 20px),
+                repeating-linear-gradient(90deg, transparent, transparent 10px, hsla(210, 50%, 60%, 0.2) 10px, hsla(210, 50%, 60%, 0.2) 11px);
+            position: relative;
+        }
+
+        .dev-window {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            background: #161b22;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dev-header {
+            height: 13px;
+            background: linear-gradient(90deg, #388bfd 60%, #161b22 100%);
+            border-bottom: 1px solid rgba(34, 34, 34, 0.4);
+            display: flex;
+            align-items: center;
+            padding-left: 8px;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .dev-code {
+            flex: 1;
+            padding: 2px 6px;
+            font-size: 9px;
+            color: #c9d1d9;
+            font-family: 'Fira Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+            line-height: 1.4;
+            white-space: pre;
+        }
+
+        .log-bg {
+            background-color: #161b22;
+            background-image: repeating-linear-gradient(180deg, transparent, transparent 15px, rgba(46, 160, 67, 0.2) 15px, rgba(46, 160, 67, 0.2) 16px);
+            position: relative;
+        }
+
+        .log-window {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            background: #11161c;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            height: 11px;
+            background: rgba(34, 34, 34, 0.7);
+            border-bottom: 1px solid rgba(34, 34, 34, 0.4);
+            font-size: 8px;
+            color: rgba(46, 160, 67, 0.8);
+            display: flex;
+            align-items: center;
+            padding-left: 8px;
+        }
+
+        .log-lines {
+            flex: 1;
+            padding: 2px 6px;
+            font-size: 9px;
+            color: var(--accent-green);
+            font-family: 'Fira Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+            line-height: 1.4;
+            white-space: pre;
+        }
+
+        .car-game-sky { 
+            background: linear-gradient(180deg, #374a68, #798bab); 
+            position: relative; 
+        }
+        
+        .car-hud {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 8px;
+            border-radius: 4px;
+            padding: 1px 4px;
+            letter-spacing: 0.05em;
+        }
+        
+        .chat-log-bg { 
+            background-color: #0d1117; 
+            background-image: repeating-linear-gradient(180deg, transparent, transparent 20px, #30363d 20px, #30363d 21px); 
+            position: relative; 
+        }
+        
+        .chat-window {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            background: #161b22;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        
+        .chat-bubble {
+            background: var(--accent-green);
+            color: #fff;
+            border-radius: 12px 12px 4px 12px;
+            padding: 2px 6px;
+            margin: 1px 16px 1px 4px;
+            font-size: 9px;
+            align-self: flex-end;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .chat-bubble.other {
+            background: #30363d;
+            color: #c9d1d9;
+            border-radius: 12px 12px 12px 4px;
+            margin: 1px 16px 1px 4px;
+            align-self: flex-start;
+        }
+        
+        .trading-bg {
+            background-color: #0d1117;
+            background-image: 
+                linear-gradient(#30363d 1px, transparent 1px), 
+                linear-gradient(90deg, #30363d 1px, transparent 1px), 
+                linear-gradient(90deg, transparent 48%, var(--accent-green) 48%, var(--accent-green) 52%, transparent 52%), 
+                linear-gradient(90deg, transparent 78%, var(--accent-red) 78%, var(--accent-red) 82%, transparent 82%);
+            background-size: 20px 20px, 20px 20px, 100% 100%, 100% 100%;
+            position: relative;
+        }
+        
+        .trading-chart {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            pointer-events: none;
+        }
+        
+        .apple-bg { 
+            background-image: linear-gradient(180deg, #21262d, #161b22); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            position: relative; 
+        }
+        
+        .apple-logo {
+            position: absolute;
+            top: 44%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            opacity: 0.18;
+        }
+        
+        .macbook-bezel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 12px 12px 10px 10px / 16px 16px 10px 10px;
+            border: 4px solid #181a1b;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+        }
+        
+        .macbook-notch {
+            position: absolute;
+            top: 7px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 36px;
+            height: 6px;
+            background: #111;
+            border-radius: 0 0 6px 6px;
+            opacity: 0.7;
+        }
+        
+        .macbook-base {
+            background: linear-gradient(180deg, #23272e 60%, #181a1b 100%);
+            width: 110%;
+            height: 16px;
+            margin-top: -2px;
+            border-radius: 0 0 16px 16px / 0 0 12px 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .monitor-bezel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 10px 10px 8px 8px / 14px 14px 8px 8px;
+            border: 4px solid #23272e;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+        }
+        
+        .monitor-base {
+            display: none;
+        }
+        
+        .ultrawide-bezel {
+            border-radius: 12px 12px 10px 10px / 18px 18px 10px 10px;
+        }
+        
+        .ultrawide-base {
+            display: none;
+        }
+        
+        .triple-bezel {
+            border-radius: 10px 10px 8px 8px / 16px 16px 8px 8px;
+        }
+        
+        .triple-base {
+            display: none;
+        }
+
+        /* Utility classes for error handling */
+        .hidden {
+            display: none !important;
+        }
+        
+        .visible {
+            display: block !important;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                color: black;
+            }
+            .fake-cursor {
+                display: none !important;
+            }
+            .interactive-monitor {
+                border: 1px solid #ccc;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip link for accessibility -->
+    <a href="#main-grid" class="skip-link">Skip to main content</a>
+    
+    <!-- Loading state -->
+    <div id="loading-state" class="loading-state">
+        <div>Loading display simulator...</div>
+    </div>
+    
+    <!-- Error state -->
+    <div id="error-state" class="error-state">
+        <div>Failed to load display simulator. Please refresh the page.</div>
+        <button onclick="location.reload()" style="margin-top: 8px; padding: 4px 8px; background: white; color: #da3633; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+    </div>
+
+    <div id="main-grid" role="main" aria-label="Display setup grid">
+        <!-- The 9 display setups are generated by JavaScript -->
+    </div>
+    
+    <script>
+        // Configuration and constants
+        const CONFIG = {
+            CURSOR_SIZE_RATIO: 0.18,
+            THROTTLE_DELAY: 16, // ~60fps
+            ERROR_TIMEOUT: 5000,
+            LAYOUT_COUNT: 9
+        };
+
+        // Utility functions
+        const utils = {
+            // Throttle function for performance
+            throttle: (func, limit) => {
+                let inThrottle;
+                return function() {
+                    const args = arguments;
+                    const context = this;
+                    if (!inThrottle) {
+                        func.apply(context, args);
+                        inThrottle = true;
+                        setTimeout(() => inThrottle = false, limit);
+                    }
+                };
+            },
+
+            // Debounce function for performance
+            debounce: (func, wait) => {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            },
+
+            // Browser compatibility check
+            checkBrowserSupport: () => {
+                const features = {
+                    grid: CSS.supports('display', 'grid'),
+                    flexbox: CSS.supports('display', 'flex'),
+                    customProperties: CSS.supports('--custom-property', 'value'),
+                    es6: typeof Promise !== 'undefined',
+                    serviceWorker: 'serviceWorker' in navigator
+                };
+                
+                console.log('Browser feature support:', features);
+                return features;
+            },
+
+            // Safe DOM query selector with error handling
+            safeQuerySelector: (selector, parent = document) => {
+                try {
+                    return parent.querySelector(selector);
+                } catch (error) {
+                    console.warn(`Failed to query selector: ${selector}`, error);
+                    return null;
+                }
+            },
+
+            // Safe DOM query selector all with error handling
+            safeQuerySelectorAll: (selector, parent = document) => {
+                try {
+                    return parent.querySelectorAll(selector);
+                } catch (error) {
+                    console.warn(`Failed to query selector all: ${selector}`, error);
+                    return [];
+                }
+            },
+
+            // Show/hide elements safely
+            showElement: (element) => {
+                if (element && element.style) {
+                    element.style.display = 'block';
+                }
+            },
+
+            hideElement: (element) => {
+                if (element && element.style) {
+                    element.style.display = 'none';
+                }
+            },
+
+            // Error logging
+            logError: (message, error = null) => {
+                console.error(`Display Simulator Error: ${message}`, error);
+                const errorState = utils.safeQuerySelector('#error-state');
+                if (errorState) {
+                    utils.showElement(errorState);
+                }
+            },
+
+            measurePerformance: (label, callback) => {
+                console.time(label);
+                callback();
+                console.timeEnd(label);
+            }
+        };
+
+        // Main application class
+        class DisplaySimulator {
+            constructor() {
+                this.mainGrid = null;
+                this.isInitialized = false;
+                this.cursorElements = [];
+                this.monitorElements = [];
+                this.init();
+            }
+
+            init() {
+                try {
+                    utils.measurePerformance('DisplaySimulator initialization', () => {
+                        this.setupErrorHandling();
+                        this.hideLoadingState();
+                        this.checkBrowserCompatibility();
+                        this.initializeGrid();
+                        this.setupEventListeners();
+                        this.isInitialized = true;
+                    });
+                } catch (error) {
+                    utils.logError('Failed to initialize display simulator', error);
+                }
+            }
+
+            setupErrorHandling() {
+                // Global error handler
+                window.addEventListener('error', (event) => {
+                    utils.logError('Global error occurred', event.error);
+                });
+
+                // Unhandled promise rejection handler
+                window.addEventListener('unhandledrejection', (event) => {
+                    utils.logError('Unhandled promise rejection', event.reason);
+                });
+            }
+
+            hideLoadingState() {
+                const loadingState = utils.safeQuerySelector('#loading-state');
+                if (loadingState) {
+                    utils.hideElement(loadingState);
+                }
+            }
+
+            checkBrowserCompatibility() {
+                const features = utils.checkBrowserSupport();
+                if (!features.grid || !features.flexbox) {
+                    console.warn('Browser may not support required CSS features');
+                }
+            }
+
+            initializeGrid() {
+                this.mainGrid = utils.safeQuerySelector('#main-grid');
+                if (!this.mainGrid) {
+                    throw new Error('Main grid element not found');
+                }
+
+                this.createGridCells();
+                this.cacheElements();
+            }
+
+            createGridCells() {
+                const layouts = this.getLayouts();
+                
+                layouts.forEach((html, index) => {
+                    try {
+                        const cell = this.createCell(index + 1, html);
+                        this.mainGrid.appendChild(cell);
+                    } catch (error) {
+                        utils.logError(`Failed to create cell ${index + 1}`, error);
+                    }
+                });
+            }
+
+            createCell(number, html) {
+                const cell = document.createElement('div');
+                cell.className = 'setup-cell';
+                cell.setAttribute('role', 'region');
+                cell.setAttribute('aria-label', `Display setup ${number}`);
+                
+                cell.innerHTML = `
+                    <h2 id="cell-${number}">${number}</h2>
+                    <div class="display-area" role="presentation">${html}</div>
+                `;
+                
+                return cell;
+            }
+
+            cacheElements() {
+                this.monitorElements = utils.safeQuerySelectorAll('.interactive-monitor');
+                this.cursorElements = utils.safeQuerySelectorAll('.fake-cursor');
+            }
+
+            setupEventListeners() {
+                // Mouse move with throttling for performance
+                const throttledMouseMove = utils.throttle(this.handleMouseMove.bind(this), CONFIG.THROTTLE_DELAY);
+                document.body.addEventListener('mousemove', throttledMouseMove);
+
+                // Mouse leave
+                document.body.addEventListener('mouseleave', this.handleMouseLeave.bind(this));
+
+                // Keyboard navigation
+                document.addEventListener('keydown', this.handleKeyDown.bind(this));
+
+                // Window resize
+                window.addEventListener('resize', utils.throttle(this.handleResize.bind(this), 100));
+
+                // Focus management
+                document.addEventListener('focusin', this.handleFocusIn.bind(this));
+            }
+
+            handleMouseMove(event) {
+                if (!this.isInitialized) return;
+
+                const clientX = event.clientX;
+                const clientY = event.clientY;
+
+                this.monitorElements.forEach((monitor, index) => {
+                    const cursor = this.cursorElements[index];
+                    if (!cursor) return;
+
+                    try {
+                        const rect = monitor.getBoundingClientRect();
+                        
+                        if (this.isMouseInBounds(clientX, clientY, rect)) {
+                            this.showCursor(cursor, clientX, clientY, rect, monitor);
+                        } else {
+                            this.hideCursor(cursor);
+                        }
+                    } catch (error) {
+                        console.warn('Error handling mouse move for monitor', index, error);
+                    }
+                });
+            }
+
+            isMouseInBounds(x, y, rect) {
+                return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+            }
+
+            showCursor(cursor, clientX, clientY, rect, monitor) {
+                try {
+                    cursor.style.display = 'block';
+                    const cursorSize = monitor.clientHeight * CONFIG.CURSOR_SIZE_RATIO;
+                    cursor.style.width = `${cursorSize}px`;
+                    cursor.style.height = `${cursorSize}px`;
+
+                    const x = clientX - rect.left;
+                    const y = clientY - rect.top;
+                    cursor.style.left = `${x}px`;
+                    cursor.style.top = `${y}px`;
+                } catch (error) {
+                    console.warn('Error showing cursor', error);
+                }
+            }
+
+            hideCursor(cursor) {
+                try {
+                    cursor.style.display = 'none';
+                } catch (error) {
+                    console.warn('Error hiding cursor', error);
+                }
+            }
+
+            handleMouseLeave() {
+                this.cursorElements.forEach(cursor => {
+                    this.hideCursor(cursor);
+                });
+            }
+
+            handleKeyDown(event) {
+                // Escape key to hide cursors
+                if (event.key === 'Escape') {
+                    this.handleMouseLeave();
+                }
+                
+                // Tab key navigation support
+                if (event.key === 'Tab') {
+                    this.handleTabNavigation(event);
+                }
+            }
+
+            handleTabNavigation(event) {
+                // Ensure focus is visible
+                const focusedElement = document.activeElement;
+                if (focusedElement && focusedElement.classList.contains('setup-cell')) {
+                    focusedElement.style.outline = '2px solid var(--accent-blue)';
+                }
+            }
+
+            handleFocusIn(event) {
+                // Remove outline from previously focused cells
+                utils.safeQuerySelectorAll('.setup-cell').forEach(cell => {
+                    if (cell !== event.target) {
+                        cell.style.outline = '';
+                    }
+                });
+            }
+
+            handleResize() {
+                // Recalculate cursor positions if needed
+                this.cacheElements();
+            }
+
+            getLayouts() {
+                // Helper to create a monitor with a cursor and a custom class
+                const monitorWithCursor = (classes, content = '') => 
+                    `<div class="interactive-monitor ${classes}" role="img" aria-label="Monitor display">${content}<div class="fake-cursor" aria-hidden="true"></div></div>`;
+
+                return [
+                    // 1. Single - MS Background
+                    `<div class="flex flex-col items-center"><div style="position:relative">${monitorWithCursor('rounded-lg w-40 h-24 ms-bg', `<svg class="ms-logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="13" height="13" x="2" y="2" fill="#fff" fill-opacity=".7"/><rect width="13" height="13" x="17" y="2" fill="#fff" fill-opacity=".5"/><rect width="13" height="13" x="2" y="17" fill="#fff" fill-opacity=".5"/><rect width="13" height="13" x="17" y="17" fill="#fff" fill-opacity=".7"/></svg>`) }<div class="monitor-bezel" aria-hidden="true"></div></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div></div>`,
+                    
+                    // 2. Ultrawide - MS Background
+                    `<div class="flex flex-col items-center"><div style="position:relative">${monitorWithCursor('rounded-lg w-64 h-28 ms-bg', `<div style="position:absolute;bottom:0;left:0;right:0;height:8px;background:rgba(0,0,0,0.18);border-radius:0 0 8px 8px;" aria-hidden="true"></div>`) }<div class="monitor-bezel" aria-hidden="true"></div></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div></div>`,
+                    
+                    // 3. Dev & Log
+                    `<div class="flex flex-col items-center">
+                      <div class="flex gap-2">
+                        <div class="flex flex-col items-center">
+                          <div style="position:relative">${monitorWithCursor('rounded-lg w-36 h-20 dev-bg', `<div class="dev-window"><div class="dev-header">main.py</div><div class="dev-code"><span style="color:#79c0ff;">def</span> <span style="color:#d2a8ff;">main</span>():<br>  <span style="color:#a5d6ff;">print</span>(<span style="color:#a5d6ff;">"Hello, world!"</span>)</div></div>`) }<div class="monitor-bezel" aria-hidden="true"></div></div>
+                          <div class="interactive-stand" style="height: 18px; margin: 0 auto;" aria-hidden="true"></div>
+                        </div>
+                        <div class="flex flex-col items-center">
+                          <div style="position:relative">${monitorWithCursor('rounded-lg w-36 h-20 log-bg', `<div class="log-window"><div class="log-header">log.txt</div><div class="log-lines">[12:00:01] Started<br>[12:00:02] Running...<br>[12:00:03] Success!</div></div>`) }<div class="monitor-bezel" aria-hidden="true"></div></div>
+                          <div class="interactive-stand" style="height: 18px; margin: 0 auto;" aria-hidden="true"></div>
+                        </div>
+                      </div>
+                    </div>`,
+                    
+                    // 4. Car Game & Chat
+                    `<div class="flex flex-col items-center">
+                      <div class="flex gap-3 items-end">
+                        <div class="flex flex-col items-center">
+                          <div class="relative">
+                            <div class="flex flex-col w-56 h-32">
+                              ${monitorWithCursor('rounded-t-lg car-game-sky flex-grow', `
+                                <div class="car-hud" style="left:auto;right:6px;top:6px;bottom:auto;display:flex;flex-direction:column;align-items:flex-end;font-size:10px;" aria-label="Speedometer showing 120 km/h">
+                                  <svg width="32" height="32" viewBox="0 0 48 48" style="margin-bottom:1px;" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="#222b" stroke="#fff2" stroke-width="2"/><path d="M24 24 L24 10" stroke="#fff" stroke-width="2"/><text x="24" y="40" text-anchor="middle" fill="#fff" font-size="10">120</text></svg>
+                                  <span style="font-size:9px;opacity:0.7;">km/h</span>
+                                </div>
+                                <div class="car-hud" style="bottom:6px;left:6px;right:auto;top:auto;font-size:10px;" aria-label="Minimap">
+                                  <svg width="24" height="24" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#222b" stroke="#fff2" stroke-width="2"/><polyline points="10,26 18,10 26,26" fill="none" stroke="#2ea043" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="#2ea043"/></svg>
+                                  <span style="font-size:9px;opacity:0.7;">Minimap</span>
+                                </div>
+                                <div class="car-hud" style="bottom:6px;right:6px;left:auto;top:auto;font-size:10px;" aria-label="Lap counter">Lap 2/3</div>
+                              `)}
+                              ${monitorWithCursor('rounded-b-lg car-game-road h-1/3', `<div class="car-hud" style="left:50%;transform:translateX(-50%);bottom:1px;top:auto;font-size:10px;" aria-label="Finish line">🏁</div>`) }
+                            </div>
+                            <div class="monitor-bezel" aria-hidden="true"></div>
+                          </div>
+                          <div class="interactive-stand" style="height: 18px; margin: 0 auto;" aria-hidden="true"></div>
+                        </div>
+                        <div class="flex flex-col items-center">
+                          <div class="relative">
+                            ${monitorWithCursor('rounded-lg w-20 h-28 chat-log-bg', `<div class="chat-window"><div class="chat-bubble other">Hey, ready?</div><div class="chat-bubble">Let's go!</div></div>`) }
+                            <div class="monitor-bezel" aria-hidden="true"></div>
+                          </div>
+                          <div class="interactive-stand" style="height: 18px; margin: 0 auto;" aria-hidden="true"></div>
+                        </div>
+                      </div>
+                    </div>`,
+                    
+                    // 5. Triple Car Game
+                    `<div class="flex flex-col items-center">
+                      <div class="flex gap-2 items-end">
+                        <div class="relative">
+                          <div class="flex flex-col w-24 h-28">
+                            ${monitorWithCursor('rounded-t-lg car-game-sky flex-grow', `<div class="car-hud" style="left:4px;top:4px;bottom:auto;right:auto;font-size:9px;" aria-label="Left mirror">Mirror</div>`)}
+                            ${monitorWithCursor('rounded-b-lg car-game-road h-1/3')}
+                          </div>
+                          <div class="triple-bezel" aria-hidden="true"></div>
+                        </div>
+                        <div class="relative">
+                          <div class="flex flex-col w-40 h-32">
+                            ${monitorWithCursor('rounded-t-lg car-game-sky flex-grow', `
+                              <div class="car-hud" style="left:auto;right:6px;top:6px;bottom:auto;display:flex;flex-direction:column;align-items:flex-end;font-size:10px;" aria-label="Speedometer showing 198 km/h">
+                                <svg width="32" height="32" viewBox="0 0 48 48" style="margin-bottom:1px;" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="#222b" stroke="#fff2" stroke-width="2"/><path d="M24 24 L24 10" stroke="#fff" stroke-width="2"/><text x="24" y="40" text-anchor="middle" fill="#fff" font-size="10">198</text></svg>
+                                <span style="font-size:9px;opacity:0.7;">km/h</span>
+                              </div>
+                              <div class="car-hud" style="bottom:6px;left:6px;right:auto;top:auto;font-size:10px;" aria-label="Minimap">
+                                <svg width="24" height="24" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#222b" stroke="#fff2" stroke-width="2"/><polyline points="10,26 18,10 26,26" fill="none" stroke="#2ea043" stroke-width="2"/><circle cx="18" cy="18" r="2" fill="#2ea043"/></svg>
+                                <span style="font-size:9px;opacity:0.7;">Minimap</span>
+                              </div>
+                              <div class="car-hud" style="bottom:6px;right:6px;left:auto;top:auto;font-size:10px;" aria-label="Lap counter">Lap 1/3</div>
+                              <div class="car-hud" style="left:50%;transform:translateX(-50%);bottom:1px;top:auto;font-size:10px;" aria-label="Steering wheel">
+                                <svg width="36" height="14" viewBox="0 0 60 24" aria-hidden="true"><ellipse cx="30" cy="20" rx="24" ry="4" fill="#222b"/><circle cx="30" cy="12" r="10" fill="#444" stroke="#fff2" stroke-width="2"/><rect x="27" y="6" width="6" height="12" rx="3" fill="#888"/><rect x="28.5" y="10" width="3" height="6" rx="1.5" fill="#fff"/></svg>
+                                <span style="font-size:8px;opacity:0.7;">Steering</span>
+                              </div>
+                            `)}
+                            ${monitorWithCursor('rounded-b-lg car-game-road h-1/3', `<div class="car-hud" style="left:50%;transform:translateX(-50%);bottom:1px;top:auto;font-size:10px;" aria-label="Finish line">🏁</div>`) }
+                          </div>
+                          <div class="triple-bezel" aria-hidden="true"></div>
+                        </div>
+                        <div class="relative">
+                          <div class="flex flex-col w-24 h-28">
+                            ${monitorWithCursor('rounded-t-lg car-game-sky flex-grow', `<div class="car-hud" style="right:4px;top:4px;bottom:auto;left:auto;font-size:9px;" aria-label="Right mirror">Mirror</div>`)}
+                            ${monitorWithCursor('rounded-b-lg car-game-road h-1/3')}
+                          </div>
+                          <div class="triple-bezel" aria-hidden="true"></div>
+                        </div>
+                      </div>
+                      <div class="interactive-stand" style="height: 18px; margin: 0 auto; margin-top: 0.5rem;" aria-hidden="true"></div>
+                    </div>`,
+                    
+                    // 6. Trading Charts
+                    `<div class="flex flex-col items-center"><div class="grid grid-cols-3 gap-1">${[0,1,2,3,4,5].map(i => `<div style='position:relative'><div class="interactive-monitor rounded w-20 h-14 trading-bg" role="img" aria-label="Trading chart ${i + 1}"><svg class="trading-chart" viewBox="0 0 60 28" aria-hidden="true"><rect x="0" y="0" width="60" height="28" fill="none"/><polyline points="2,24 10,18 18,20 26,10 34,12 42,6 50,14 58,8" fill="none" stroke="#2ea043" stroke-width="2"/><polyline points="2,14 10,8 18,10 26,6 34,8 42,2 50,10 58,4" fill="none" stroke="#da3633" stroke-width="2"/></svg><div class="fake-cursor" aria-hidden="true"></div></div><div class='monitor-bezel' aria-hidden="true"></div></div><div class='monitor-base' aria-hidden="true"></div>`).join('')}</div><div class="interactive-stand" style="height: 15px;" aria-hidden="true"></div></div>`,
+                    
+                    // 7. Sequencer & Controls
+                    `<div class="flex flex-col items-center"><div style="position:relative">${monitorWithCursor('rounded-lg w-36 h-20 sequencer-bg')}<div class="monitor-bezel" aria-hidden="true"></div></div><div class="monitor-base" aria-hidden="true"></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div><div style="position:relative">${monitorWithCursor('rounded-lg w-36 h-20 -mt-1 controls-bg')}<div class="monitor-bezel" aria-hidden="true"></div></div><div class="monitor-base" aria-hidden="true"></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div></div>`,
+                    
+                    // 8. Code, Exec, Logs
+                    `<div class="flex items-end gap-1.5"><div class="flex flex-col items-center"><div style="position:relative">${monitorWithCursor('rounded-lg w-20 h-28 dev-bg')}<div class="monitor-bezel" aria-hidden="true"></div></div><div class="monitor-base" aria-hidden="true"></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div></div><div class="flex flex-col items-center"><div style="position:relative">${monitorWithCursor('rounded-lg w-28 h-20 ms-bg')}<div class="monitor-bezel" aria-hidden="true"></div></div><div class="monitor-base" aria-hidden="true"></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div></div><div class="flex flex-col items-center"><div style="position:relative">${monitorWithCursor('rounded-lg w-20 h-28 log-bg')}<div class="monitor-bezel" aria-hidden="true"></div></div><div class="monitor-base" aria-hidden="true"></div><div class="interactive-stand" style="margin: 0 auto;" aria-hidden="true"></div></div></div>`,
+                    
+                    // 9. Apple
+                    `<div class="flex flex-col items-center">
+                      ${monitorWithCursor('rounded-t-lg w-44 h-28 apple-bg', `
+                        <div class="macbook-bezel" aria-hidden="true"></div>
+                        <div class="macbook-notch" aria-hidden="true"></div>
+                        <svg class="apple-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.59,13.72a2.33,2.33,0,0,1,1.17-2.07,2.25,2.25,0,0,0-1.89-1.2H12.2A4.55,4.55,0,0,0,8.1,14.65a4.78,4.78,0,0,0,3.58,4.64,2.3,2.3,0,0,0,2.15-1.1,2.28,2.28,0,0,1-1.88-2.18,2.53,2.53,0,0,1,2.6-2.29ZM12.48,5A2.47,2.47,0,0,1,14.37,7.1a2.3,2.3,0,0,1-1.74,2.2,2.46,2.46,0,0,1-2.38-2A2.5,2.5,0,0,1,12.48,5Z"/></svg>
+                      `)}
+                      <div class="macbook-base" aria-hidden="true"></div>
+                    </div>`
+                ];
+            }
+        }
+
+        // Initialize the application when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                new DisplaySimulator();
+            } catch (error) {
+                utils.logError('Failed to start display simulator', error);
+            }
+        });
+
+        // Fallback for older browsers
+        if (!document.addEventListener) {
+            window.onload = function() {
+                try {
+                    new DisplaySimulator();
+                } catch (error) {
+                    utils.logError('Failed to start display simulator (fallback)', error);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
